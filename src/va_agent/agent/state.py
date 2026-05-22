@@ -26,6 +26,9 @@ Phase = Literal[
     "match_candidates",
     "claim_review",
     "evidence_review",
+    "lay_statement_draft",
+    "exam_prep_generate",
+    "review_edit",
     "complete",
 ]
 
@@ -82,6 +85,11 @@ class AgentState(TypedDict, total=False):
     weaknesses: list[dict]
     bilateral_prompts: list[dict]
     missing_evidence: dict
+
+    # LayStatementDraft → ExamPrepGenerate → Review/Edit
+    lay_statements: dict  # dc_code -> {"text": str, "factuality_ok": bool, "node_id": str}
+    exam_preps: dict      # dc_code -> {"node_id": str, ...}
+    drafting_queue: list[str]  # remaining DC codes
 
     # Conversation
     transcript: Annotated[list[Message], _append]

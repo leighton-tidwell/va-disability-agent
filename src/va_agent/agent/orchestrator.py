@@ -16,10 +16,13 @@ from .concepts import Concept, load_concepts
 from .nodes import (
     claim_review_node,
     evidence_review_node,
+    exam_prep_generate_node,
     intake_node,
     job_profile_node,
+    lay_statement_draft_node,
     match_candidates_node,
     measurement_check_node,
+    review_edit_node,
     symptom_exploration_node,
 )
 from .state import AgentState
@@ -75,6 +78,28 @@ def _route_after_claim_review(state: AgentState) -> str:
 
 
 def _route_after_evidence_review(state: AgentState) -> str:
+    if state.get("phase") == "lay_statement_draft":
+        return "lay_statement_draft"
+    return END
+
+
+def _route_after_lay_statement_draft(state: AgentState) -> str:
+    if state.get("phase") == "exam_prep_generate":
+        return "exam_prep_generate"
+    if state.get("phase") == "lay_statement_draft":
+        return "lay_statement_draft"
+    return END
+
+
+def _route_after_exam_prep_generate(state: AgentState) -> str:
+    if state.get("phase") == "review_edit":
+        return "review_edit"
+    if state.get("phase") == "exam_prep_generate":
+        return "exam_prep_generate"
+    return END
+
+
+def _route_after_review_edit(state: AgentState) -> str:
     return END
 
 
@@ -110,6 +135,18 @@ def build_orchestrator(
         "evidence_review",
         partial(evidence_review_node, driver=driver, concepts=concepts),
     )
+    graph.add_node(
+        "lay_statement_draft",
+        partial(lay_statement_draft_node, driver=driver, concepts=concepts),
+    )
+    graph.add_node(
+        "exam_prep_generate",
+        partial(exam_prep_generate_node, driver=driver, concepts=concepts),
+    )
+    graph.add_node(
+        "review_edit",
+        partial(review_edit_node, driver=driver, concepts=concepts),
+    )
 
     graph.set_entry_point("intake")
     graph.add_conditional_edges("intake", _route_after_intake)
@@ -119,6 +156,9 @@ def build_orchestrator(
     graph.add_conditional_edges("match_candidates", _route_after_match_candidates)
     graph.add_conditional_edges("claim_review", _route_after_claim_review)
     graph.add_conditional_edges("evidence_review", _route_after_evidence_review)
+    graph.add_conditional_edges("lay_statement_draft", _route_after_lay_statement_draft)
+    graph.add_conditional_edges("exam_prep_generate", _route_after_exam_prep_generate)
+    graph.add_conditional_edges("review_edit", _route_after_review_edit)
 
     return graph.compile()
 

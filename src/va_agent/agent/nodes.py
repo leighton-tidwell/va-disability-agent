@@ -825,6 +825,193 @@ def evidence_review_node(
             "Evidence above is what you (or your VSO) need to gather before C&P."
         )
     )
+    # Seed the drafting queue with every Claimed Condition's DC code.
+    drafting_queue = [code for code in missing]
+    updates["drafting_queue"] = drafting_queue
+    updates["phase"] = "lay_statement_draft"
+    updates["transcript"] = transcript
+    return updates
+
+
+# --- node 8: LayStatementDraft -----------------------------------------------
+
+
+def lay_statement_draft_node(
+    state: AgentState, *, driver: GraphDriver, concepts: list[Concept]
+) -> dict:
+    """Draft a Lay Statement for the next Claimed Condition in the queue."""
+    from ..output.drafter import draft_lay_statement
+    from ..output.exam_prep import persist_lay_statement
+
+    updates: dict = {}
+    transcript: list[Message] = []
+    queue = list(state.get("drafting_queue") or [])
+    claim_id = state.get("claim_id")
+    if not queue or not claim_id:
+        updates["phase"] = "exam_prep_generate"
+        # Seed the exam-prep queue from the same DC list we drafted for.
+        existing = state.get("lay_statements") or {}
+        updates["drafting_queue"] = list(existing.keys())
+        return updates
+
+    code = queue.pop(0)
+    draft = draft_lay_statement(driver, state["user_id"], code)
+    node_id = persist_lay_statement(
+        driver,
+        state["user_id"],
+        claim_id=claim_id,
+        dc_code=code,
+        text=draft.text,
+        factuality_ok=draft.factuality.ok,
+    )
+
+    lay_statements = dict(state.get("lay_statements") or {})
+    lay_statements[code] = {
+        "node_id": node_id,
+        "text": draft.text,
+        "factuality_ok": draft.factuality.ok,
+        "attempts": draft.attempts,
+    }
+    updates["lay_statements"] = lay_statements
+    updates["drafting_queue"] = queue
+
+    status = "✓ factuality OK" if draft.factuality.ok else "⚠️  factuality fail"
+    transcript.append(
+        _say(f"DC {code} — Lay Statement drafted (attempts={draft.attempts}, {status}):")
+    )
+    transcript.append(_say(draft.text))
+
+    if not queue:
+        updates["phase"] = "exam_prep_generate"
+        updates["drafting_queue"] = list(lay_statements.keys())
+    updates["transcript"] = transcript
+    return updates
+
+
+# --- node 9: ExamPrepGenerate ------------------------------------------------
+
+
+def exam_prep_generate_node(
+    state: AgentState, *, driver: GraphDriver, concepts: list[Concept]
+) -> dict:
+    """Generate per-Claimed-Condition C&P Exam Preparation."""
+    from ..output.exam_prep import generate_exam_prep, persist_exam_prep
+
+    updates: dict = {}
+    transcript: list[Message] = []
+    queue = list(state.get("drafting_queue") or [])
+    claim_id = state.get("claim_id")
+    if not queue or not claim_id:
+        updates["phase"] = "review_edit"
+        return updates
+
+    code = queue.pop(0)
+    prep = generate_exam_prep(driver, state["user_id"], code)
+    node_id = persist_exam_prep(driver, prep, claim_id=claim_id)
+
+    exam_preps = dict(state.get("exam_preps") or {})
+    exam_preps[code] = {
+        "node_id": node_id,
+        "dc_title": prep.dc_title,
+        "will_measure": prep.will_measure,
+        "describe": prep.describe_to_examiner,
+        "records": prep.records_to_bring,
+        "notes": prep.notes,
+    }
+    updates["exam_preps"] = exam_preps
+    updates["drafting_queue"] = queue
+
+    transcript.append(_say(f"DC {code} — C&P Exam Prep generated:"))
+    if prep.will_measure:
+        transcript.append(
+            _say(
+                "  The examiner will measure: "
+                + ", ".join(f"{m['name']} ({m['body_part']})" for m in prep.will_measure)
+            )
+        )
+    for line in prep.describe_to_examiner[:3]:
+        transcript.append(_say(f"  · {line}"))
+
+    if not queue:
+        updates["phase"] = "review_edit"
+    updates["transcript"] = transcript
+    return updates
+
+
+# --- node 10: Review/Edit ----------------------------------------------------
+
+
+def review_edit_node(
+    state: AgentState, *, driver: GraphDriver, concepts: list[Concept]
+) -> dict:
+    """Final review surface: present every drafted Lay Statement + Exam Prep and
+    accept an optional veteran edit. For v1 the only "edit" we honour is a free-
+    text replacement supplied via ``pending_inputs`` in the form ``DC NNNN: <text>``.
+    Anything not matching that pattern advances to complete.
+    """
+    from ..output.exam_prep import persist_lay_statement
+
+    updates: dict = {}
+    transcript: list[Message] = []
+
+    veteran_text, remaining = _pop_input(state)
+    if veteran_text is None:
+        # Print the summary and wait. If there's no more input, complete.
+        transcript.append(_say("Final review — here's the bundle for this session:"))
+        for code, ls in (state.get("lay_statements") or {}).items():
+            ok = "OK" if ls.get("factuality_ok") else "FAIL"
+            transcript.append(
+                _say(f"  • DC {code}: Lay Statement [{ok}] + Exam Prep ✓")
+            )
+        transcript.append(
+            _say(
+                "If you want to revise a Lay Statement, reply with "
+                "`DC NNNN: <your revised paragraph>` — otherwise we're done."
+            )
+        )
+        updates["phase"] = "complete"
+        updates["transcript"] = transcript
+        return updates
+
+    transcript.append(_heard(veteran_text))
+    parsed = _parse_edit(veteran_text)
+    if parsed is None:
+        transcript.append(_say("(no edit recognised; finalising)"))
+        updates["phase"] = "complete"
+        updates["pending_inputs"] = remaining
+        updates["transcript"] = transcript
+        return updates
+
+    code, new_text = parsed
+    claim_id = state.get("claim_id")
+    if not claim_id:
+        updates["phase"] = "complete"
+        updates["transcript"] = transcript
+        return updates
+    node_id = persist_lay_statement(
+        driver, state["user_id"], claim_id=claim_id, dc_code=code, text=new_text, factuality_ok=True
+    )
+    lay_statements = dict(state.get("lay_statements") or {})
+    lay_statements[code] = {
+        "node_id": node_id,
+        "text": new_text,
+        "factuality_ok": True,
+        "attempts": lay_statements.get(code, {}).get("attempts", 0) + 1,
+        "edited": True,
+    }
+    updates["lay_statements"] = lay_statements
+    transcript.append(_say(f"Saved your revised Lay Statement for DC {code}."))
+    updates["pending_inputs"] = remaining
     updates["phase"] = "complete"
     updates["transcript"] = transcript
     return updates
+
+
+def _parse_edit(text: str) -> tuple[str, str] | None:
+    """Parse 'DC NNNN: revised text' into (code, text)."""
+    import re
+
+    m = re.match(r"^\s*DC\s*([0-9]{4})\s*:\s*(.+)$", text, re.IGNORECASE | re.DOTALL)
+    if not m:
+        return None
+    return m.group(1), m.group(2).strip()
