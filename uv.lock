@@ -2324,6 +2324,7 @@ name = "va-disability-agent"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [
+    { name = "httpx" },
     { name = "jupyterlab" },
     { name = "langchain" },
     { name = "langchain-openai" },
@@ -2343,6 +2344,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "httpx", specifier = ">=0.27" },
     { name = "jupyterlab", specifier = ">=4.0" },
     { name = "langchain", specifier = ">=1.0" },
     { name = "langchain-openai", specifier = ">=0.3" },
