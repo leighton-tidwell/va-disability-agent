@@ -53,19 +53,24 @@ class GraphDriver:
 
     # --- CFR-side operations ---------------------------------------------------
 
-    def cfr_write(self, query: str, **params: Any) -> None:
+    def cfr_write(self, query: str, params: dict[str, Any] | None = None, **kwparams: Any) -> None:
         """Execute a write Cypher query against the CFR namespace.
 
-        The query string MUST already scope to ``:CFR`` labels — the wrapper
-        cannot enforce that without parsing Cypher. Callers should keep all
-        write queries in ``va_agent.graph.writers`` so they're easy to audit.
+        Accepts parameters via either ``params={...}`` (preferred — survives
+        kwarg collisions cleanly) or ``**kwparams`` (legacy convenience).
         """
+        merged = dict(params or {})
+        merged.update(kwparams)
         with self.session() as session:
-            session.run(query, **params)
+            session.run(query, **merged)
 
-    def cfr_read(self, query: str, **params: Any) -> list[dict[str, Any]]:
+    def cfr_read(
+        self, query: str, params: dict[str, Any] | None = None, **kwparams: Any
+    ) -> list[dict[str, Any]]:
+        merged = dict(params or {})
+        merged.update(kwparams)
         with self.session() as session:
-            result = session.run(query, **params)
+            result = session.run(query, **merged)
             return [record.data() for record in result]
 
     # --- User-side operations --------------------------------------------------
