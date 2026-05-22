@@ -1,0 +1,225 @@
+# Hand-curated MOS Risk Overlay.
+#
+# These are *inferences* drawn from publicly available duty descriptions
+# (DA PAM 611-21, MCO 1200.18, AFECD, NEC Manual) about non-acoustic risk —
+# musculoskeletal joints likely loaded by the job, plus common symptom
+# fingerprints. The authoritative VA noise-exposure data lives in the spine
+# (`duty_mos_noise.xlsx`); this file only adds musculoskeletal / other
+# secondary signals.
+#
+# Confidence is `medium` across the board because none of these inferences
+# are legally authoritative — they're plausible patterns that the agent uses
+# as Functional Loss Probes, not as Service Connection evidence.
+#
+# Every `code` + `branch` must already exist in the spine. The overlay raises
+# OverlayError if not.
+
+# ---------------- Army (MOS) ----------------
+
+- code: "11B"
+  branch: "Army"
+  title: "Infantryman"
+  likely_anatomy: ["knee", "back", "ankle", "hip", "shoulder"]
+  likely_symptoms: ["chronic-back-pain", "knee-pain"]
+  rationale: >-
+    Foot-mobile combat role with sustained ruck-march load (often 60-100 lbs)
+    over uneven terrain. Repeated jumping, kneeling firing positions, and
+    body armor compress the lumbar spine and load the knees and ankles.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+- code: "13B"
+  branch: "Army"
+  title: "Cannon Crewmember"
+  likely_anatomy: ["back", "shoulder", "knee"]
+  likely_symptoms: ["chronic-back-pain", "shoulder-pain"]
+  rationale: >-
+    Field artillery cannoneers repeatedly lift and ram 95+ lb projectiles
+    into a howitzer breech under time pressure. Sustained heavy lifting at
+    awkward angles loads the lumbar spine and shoulders.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+- code: "15T"
+  branch: "Army"
+  title: "UH-60 Helicopter Repairer"
+  likely_anatomy: ["knee", "back", "shoulder", "wrist"]
+  likely_symptoms: ["knee-pain", "chronic-back-pain"]
+  rationale: >-
+    Rotor-wing maintenance: prolonged kneeling on aircraft decks, overhead
+    work removing rotor heads, and exposure to airframe vibration during
+    ground runs. Knees, shoulders, and lumbar spine all loaded.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+- code: "19D"
+  branch: "Army"
+  title: "Cavalry Scout"
+  likely_anatomy: ["back", "knee", "neck"]
+  likely_symptoms: ["chronic-back-pain", "neck-pain"]
+  rationale: >-
+    Mounted reconnaissance in tracked/wheeled vehicles — sustained
+    whole-body vibration from HMMWV and Bradley platforms, plus body
+    armor and helmet load on the cervical spine during dismount drills.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+- code: "88M"
+  branch: "Army"
+  title: "Motor Transport Operator"
+  likely_anatomy: ["back", "shoulder", "neck"]
+  likely_symptoms: ["chronic-back-pain", "neck-pain"]
+  rationale: >-
+    Long-haul military truck driving on poor roads: sustained whole-body
+    vibration, prolonged seated posture, and frequent climbing into and
+    out of high cabs while wearing body armor.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+- code: "92F"
+  branch: "Army"
+  title: "Petroleum Supply Specialist"
+  likely_anatomy: ["back", "shoulder"]
+  likely_symptoms: ["chronic-back-pain"]
+  rationale: >-
+    Manhandling heavy fuel hoses, valves, and drums; repeated bending and
+    twisting while connecting fuel-distribution equipment.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+# ---------------- Marine Corps (Occupational Field, by grade) ----------------
+
+- code: "03XX-E"
+  branch: "Marine Corps"
+  title: "Infantry (Enlisted)"
+  likely_anatomy: ["knee", "back", "ankle", "hip", "shoulder"]
+  likely_symptoms: ["chronic-back-pain", "knee-pain"]
+  rationale: >-
+    USMC enlisted infantry — riflemen, machine gunners, mortarmen, assaultmen.
+    Foot-mobile combat with heavy load carriage, fast-rope insertion, and
+    sustained kneeling/prone firing positions.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+- code: "08XX-E"
+  branch: "Marine Corps"
+  title: "Field Artillery (Enlisted)"
+  likely_anatomy: ["back", "shoulder", "knee"]
+  likely_symptoms: ["chronic-back-pain", "shoulder-pain"]
+  rationale: >-
+    Howitzer crew: repetitive heavy projectile lifting and ramming under
+    time pressure; sustained shoulder, lumbar, and knee loading.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+- code: "18XX-E"
+  branch: "Marine Corps"
+  title: "Tank and Assault Amphibious Vehicle Crewmen (Enlisted)"
+  likely_anatomy: ["back", "neck", "knee"]
+  likely_symptoms: ["chronic-back-pain", "neck-pain"]
+  rationale: >-
+    Tracked-vehicle crewmen — sustained whole-body vibration in the M1A1
+    and AAV, plus repeated overhead hatch transit and turret loading.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+# ---------------- Navy (Rating) ----------------
+
+- code: "BM"
+  branch: "Navy"
+  title: "Boatswain's Mate"
+  likely_anatomy: ["back", "shoulder", "knee"]
+  likely_symptoms: ["chronic-back-pain", "shoulder-pain"]
+  rationale: >-
+    Deck seamanship: line handling, anchor work, small-boat operations,
+    and heavy rigging. Sustained pulling/lifting on a moving deck loads
+    the back and shoulders; nonskid surfaces are hard on the knees.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+- code: "HM"
+  branch: "Navy"
+  title: "Hospital Corpsman"
+  likely_anatomy: ["back", "shoulder"]
+  likely_symptoms: ["chronic-back-pain"]
+  rationale: >-
+    Patient lifting and transport, stretcher-bearer duty in shipboard and
+    field environments. Operational corpsmen (FMF) also carry a full
+    combat load while attached to Marine units.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+- code: "AB"
+  branch: "Navy"
+  title: "Aviation Boatswain's Mate"
+  likely_anatomy: ["back", "shoulder", "knee"]
+  likely_symptoms: ["chronic-back-pain"]
+  rationale: >-
+    Flight-deck operations: catapult and arresting-gear maintenance,
+    aircraft handling, and chain-tie-down work on a moving carrier deck.
+    Repetitive heavy lifting at awkward angles.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+# ---------------- Air Force (AFSC) ----------------
+
+- code: "2A5X1"
+  branch: "Air Force"
+  title: "Aerospace Maintenance"
+  likely_anatomy: ["knee", "back", "shoulder", "wrist"]
+  likely_symptoms: ["knee-pain", "chronic-back-pain"]
+  rationale: >-
+    Crew-chief work on fighter and transport airframes — prolonged
+    kneeling and crouching under wings, overhead reach into engine bays,
+    and torque-wrench loading of the wrists and shoulders.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+- code: "3E2X1"
+  branch: "Air Force"
+  title: "Pavement and Construction Equipment"
+  likely_anatomy: ["back", "neck", "shoulder"]
+  likely_symptoms: ["chronic-back-pain"]
+  rationale: >-
+    Heavy-equipment operation (graders, rollers, dump trucks) and
+    expedient-airfield construction — sustained whole-body vibration and
+    repeated heavy lifting of barrier and matting components.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+- code: "1T2X1"
+  branch: "Air Force"
+  title: "Pararescue"
+  likely_anatomy: ["knee", "back", "ankle", "shoulder"]
+  likely_symptoms: ["chronic-back-pain", "knee-pain"]
+  rationale: >-
+    Combat search-and-rescue jumpers — parachute landings, fast-rope
+    insertions, dive operations, and casualty evacuation under load.
+    Sustained joint loading across knees, ankles, and lumbar spine.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+# ---------------- Coast Guard (Rating) ----------------
+
+- code: "BM"
+  branch: "Coast Guard"
+  title: "Boatswain's Mate"
+  likely_anatomy: ["back", "shoulder", "knee"]
+  likely_symptoms: ["chronic-back-pain"]
+  rationale: >-
+    Small-boat coxswain and deck work in heavy seas — sustained slamming
+    forces on the spine while underway, plus line handling and rescue
+    operations.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+- code: "MK"
+  branch: "Coast Guard"
+  title: "Machinery Technician"
+  likely_anatomy: ["back", "shoulder", "knee", "wrist"]
+  likely_symptoms: ["chronic-back-pain"]
+  rationale: >-
+    Engine-room maintenance on cutters: working in cramped spaces, lifting
+    heavy components, and sustained awkward postures under deck plates.
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }

@@ -1,0 +1,8 @@
+- code: "TEST-NOT-A-REAL-CODE"
+  branch: "Army"
+  title: "Phantom MOS"
+  likely_anatomy: ["knee"]
+  likely_symptoms: []
+  rationale: "References a JobCode that does not exist in the spine."
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
