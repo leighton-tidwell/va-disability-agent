@@ -1,0 +1,8 @@
+# Small anatomy fixture for hermetic tests — only the knee pair.
+anatomy:
+  - { name: "knee",       body_system: "musculoskeletal", parent_anatomy: "knee", side: "unspecified" }
+  - { name: "left knee",  body_system: "musculoskeletal", parent_anatomy: "knee", side: "left" }
+  - { name: "right knee", body_system: "musculoskeletal", parent_anatomy: "knee", side: "right" }
+
+pairs:
+  - knee
