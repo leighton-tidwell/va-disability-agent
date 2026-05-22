@@ -1,8 +1,28 @@
 """Write validated CFR extractions to the graph.
 
 Each function is idempotent (uses ``MERGE``) so re-ingestion of the same
-content produces the same graph state. ``retrieved_at`` and ``content_hash``
-are stored on every CFR node so slice #13 can diff.
+content produces the same graph state.
+
+Provenance properties (``retrieved_at`` ISO date + ``content_hash`` sha256)
+are stored on every CFR node that represents an independent unit of CFR
+content — so slice #13's ``diff_section`` can detect drift node-by-node:
+
+- ``:CFR:Section``     — ``retrieved_at`` only; the section is a container,
+                          not a unit of content. Its DCs/Rules carry hashes.
+- ``:CFR:DiagnosticCode`` — ``retrieved_at`` + ``content_hash`` (full DC text).
+- ``:CFR:Criterion``   — ``content_hash`` of the criterion text (derivative,
+                          but useful for fast equality checks).
+- ``:CFR:Rule``        — ``retrieved_at`` + ``content_hash`` of the rule body.
+
+Intentionally exempt (no hash/timestamp):
+
+- ``:CFR:RatingLevel`` — closed enumeration of VA percentages (0..100); not
+                          derived from CFR text and therefore can't drift.
+- ``:CFR:Measurement`` — derivative of its parent ``:Criterion``; the DC's
+                          ``content_hash`` already covers any drift here.
+- ``:CFR:Note`` / ``:CFR:CrossReference`` — derivative of the parent DC and
+                          covered by the DC-level hash.
+- ``:CFR:Anatomy``    — a controlled vocabulary node, not CFR text.
 """
 
 from __future__ import annotations
