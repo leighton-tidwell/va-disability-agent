@@ -22,6 +22,10 @@ Phase = Literal[
     "intake",
     "job_profile",
     "symptom_exploration",
+    "measurement_check",
+    "match_candidates",
+    "claim_review",
+    "evidence_review",
     "complete",
 ]
 
@@ -71,6 +75,13 @@ class AgentState(TypedDict, total=False):
     anatomy_queue: list[str]
     current_anatomy: str | None
     symptoms_recorded: list[SymptomDraft]
+
+    # MatchCandidates → ClaimReview → EvidenceReview
+    candidate_dcs: list[dict]
+    claim_id: str | None
+    weaknesses: list[dict]
+    bilateral_prompts: list[dict]
+    missing_evidence: dict
 
     # Conversation
     transcript: Annotated[list[Message], _append]
