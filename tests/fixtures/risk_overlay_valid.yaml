@@ -1,0 +1,17 @@
+- code: "TEST-11B"
+  branch: "Army"
+  title: "Infantryman (fixture)"
+  likely_anatomy: ["knee", "back"]
+  likely_symptoms: ["chronic-back-pain"]
+  rationale: "Fixture entry."
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
+
+- code: "TEST-2A5X1"
+  branch: "Air Force"
+  title: "Aerospace Maintenance (fixture)"
+  likely_anatomy: ["knee", "shoulder"]
+  likely_symptoms: ["knee-pain"]
+  rationale: "Fixture entry."
+  sources:
+    - { type: "duty-description-inference", confidence: "medium" }
