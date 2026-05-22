@@ -34,3 +34,7 @@ data/*.local.*
 .idea/
 .vscode/
 *.swp
+
+# Agent skills (installed via `make install-skills`)
+.agents/
+.claude/
