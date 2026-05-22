@@ -77,3 +77,37 @@ class DiagnosticCodeExtraction(BaseModel):
     cross_references: list[str] = Field(default_factory=list, description="e.g. 'DC 5003', '§4.59'.")
     notes: list[str] = Field(default_factory=list, description="Verbatim Note (1), Note (2), etc.")
     raw_text: str = Field(..., description="Original CFR text the extraction was derived from.")
+
+
+class RuleExtraction(BaseModel):
+    """A general CFR Rule from §4.1–§4.31 (general provisions of the rating schedule).
+
+    These sections do not have Diagnostic Codes — they encode prose rules
+    (Pyramiding §4.14, Combined Ratings Table §4.25, Bilateral Factor §4.26,
+    Functional Loss §4.40, etc.) that condition how Rating Percentages are
+    derived and combined. They become :CFR:Rule nodes in the graph.
+    """
+
+    id: str = Field(
+        ...,
+        description=(
+            "Stable rule identifier — the section number without leading '4.' is acceptable. "
+            "Examples: 'pyramiding', 'bilateral_factor', 'functional_loss'. "
+            "Use snake_case."
+        ),
+    )
+    name: str = Field(..., description="Human-readable rule title (e.g. 'Pyramiding').")
+    text: str = Field(..., description="Verbatim rule body text from the CFR.")
+    body_system: str = Field(
+        default="general",
+        description="Body system this rule applies to; defaults to 'general'.",
+    )
+    section: str = Field(..., description="CFR section the rule lives in (e.g. '4.14').")
+    applies_to: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Optional list of scopes the rule applies to — body system names "
+            "('musculoskeletal'), DC code strings ('5260'), or section refs "
+            "('4.71a'). Empty list means the rule is global."
+        ),
+    )

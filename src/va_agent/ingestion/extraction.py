@@ -12,7 +12,7 @@ from typing import Protocol
 from langchain_openai import ChatOpenAI
 from lxml import etree
 
-from .schemas import DiagnosticCodeExtraction
+from .schemas import DiagnosticCodeExtraction, RuleExtraction
 
 EXTRACTION_INSTRUCTIONS = """\
 You are extracting a single VA Diagnostic Code from 38 CFR Part 4 text.
@@ -36,6 +36,31 @@ Rules:
 - Capture cross-references like "DC 5003" or "§4.59" in cross_references.
 - Capture verbatim Note (1), Note (2), etc. in notes.
 - raw_text MUST be the verbatim source text you were given.
+"""
+
+
+RULE_EXTRACTION_INSTRUCTIONS = """\
+You are extracting a single general-provisions rule from 38 CFR Part 4,
+§4.1 through §4.31. These are prose rules — NOT Diagnostic Codes.
+
+Important rules in this range include:
+- §4.14 Pyramiding (no double-rating the same symptom)
+- §4.25 Combined Ratings Table (how Rating Percentages combine)
+- §4.26 Bilateral Factor (the matching-limbs uplift)
+- §4.40 Functional Loss, §4.45 Joints, §4.59 Painful motion
+
+For the source you are given:
+- "id" must be a short snake_case identifier (e.g. "pyramiding",
+  "bilateral_factor", "combined_ratings_table", "functional_loss").
+- "name" is the human-readable rule title from the section heading
+  (e.g. "Pyramiding"). Strip the leading "§ 4.NN" if present.
+- "text" is the verbatim CFR rule body — keep it intact, do not paraphrase.
+- "body_system" defaults to "general" — only change it if the rule is
+  scoped to a specific body system in the text itself.
+- "section" is the CFR section number (e.g. "4.14"), no leading "§".
+- "applies_to" should list scopes the rule explicitly references — body
+  system names, DC codes ("5260"), or section refs ("4.71a"). Leave empty
+  for global rules.
 """
 
 
@@ -65,6 +90,52 @@ class OpenAIExtractor:
             ]
         )
         return result  # type: ignore[return-value]
+
+
+class RuleExtractor(Protocol):
+    """Protocol for extractors that turn a section's prose into a RuleExtraction.
+
+    Mirrors ``StructuredExtractor`` but carries the section identifier so the
+    LLM can populate it without re-derivation.
+    """
+
+    def extract(self, raw_text: str, *, section: str) -> RuleExtraction: ...
+
+
+class OpenAIRuleExtractor:
+    """LangChain + ChatOpenAI with RuleExtraction-bound structured output."""
+
+    def __init__(self, model: str = "gpt-4o-mini", temperature: float = 0.0) -> None:
+        self._llm = ChatOpenAI(model=model, temperature=temperature).with_structured_output(
+            RuleExtraction
+        )
+
+    def extract(self, raw_text: str, *, section: str) -> RuleExtraction:
+        result = self._llm.invoke(
+            [
+                ("system", RULE_EXTRACTION_INSTRUCTIONS),
+                ("user", f"Section: {section}\n\n{raw_text}"),
+            ]
+        )
+        return result  # type: ignore[return-value]
+
+
+def extract_section_text(xml_text: str) -> tuple[str, str]:
+    """Pull the heading and body text out of a §4.X section's XML.
+
+    Returns ``(heading, body)`` where heading is the ``<HEAD>`` text (e.g.
+    "§ 4.14 Avoidance of pyramiding.") and body is the concatenation of all
+    ``<P>`` paragraphs in the section, separated by blank lines.
+    """
+    root = etree.fromstring(xml_text.encode("utf-8") if isinstance(xml_text, str) else xml_text)
+    head_el = root.find(".//HEAD")
+    heading = "".join(head_el.itertext()).strip() if head_el is not None else ""
+    body_parts = [
+        "".join(p.itertext()).strip()
+        for p in root.findall(".//P")
+        if "".join(p.itertext()).strip()
+    ]
+    return heading, "\n\n".join(body_parts)
 
 
 def extract_dc_text(xml_text: str, dc_code: str) -> str:
