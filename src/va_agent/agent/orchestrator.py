@@ -14,8 +14,12 @@ from langgraph.graph import END, StateGraph
 from ..graph.driver import GraphDriver
 from .concepts import Concept, load_concepts
 from .nodes import (
+    claim_review_node,
+    evidence_review_node,
     intake_node,
     job_profile_node,
+    match_candidates_node,
+    measurement_check_node,
     symptom_exploration_node,
 )
 from .state import AgentState
@@ -39,11 +43,39 @@ def _route_after_job_profile(state: AgentState) -> str:
 
 
 def _route_after_symptom_exploration(state: AgentState) -> str:
+    if state.get("phase") == "measurement_check":
+        return "measurement_check"
     if state.get("phase") == "complete":
         return END
     if not state.get("pending_inputs"):
         return END
     return "symptom_exploration"
+
+
+def _route_after_measurement_check(state: AgentState) -> str:
+    if state.get("phase") == "match_candidates":
+        return "match_candidates"
+    if state.get("phase") == "complete":
+        return END
+    if not state.get("pending_inputs"):
+        return END
+    return "measurement_check"
+
+
+def _route_after_match_candidates(state: AgentState) -> str:
+    if state.get("phase") == "claim_review":
+        return "claim_review"
+    return END
+
+
+def _route_after_claim_review(state: AgentState) -> str:
+    if state.get("phase") == "evidence_review":
+        return "evidence_review"
+    return END
+
+
+def _route_after_evidence_review(state: AgentState) -> str:
+    return END
 
 
 def build_orchestrator(
@@ -62,13 +94,31 @@ def build_orchestrator(
         "symptom_exploration",
         partial(symptom_exploration_node, driver=driver, concepts=concepts),
     )
+    graph.add_node(
+        "measurement_check",
+        partial(measurement_check_node, driver=driver, concepts=concepts),
+    )
+    graph.add_node(
+        "match_candidates",
+        partial(match_candidates_node, driver=driver, concepts=concepts),
+    )
+    graph.add_node(
+        "claim_review",
+        partial(claim_review_node, driver=driver, concepts=concepts),
+    )
+    graph.add_node(
+        "evidence_review",
+        partial(evidence_review_node, driver=driver, concepts=concepts),
+    )
 
     graph.set_entry_point("intake")
     graph.add_conditional_edges("intake", _route_after_intake)
     graph.add_conditional_edges("job_profile", _route_after_job_profile)
-    graph.add_conditional_edges(
-        "symptom_exploration", _route_after_symptom_exploration
-    )
+    graph.add_conditional_edges("symptom_exploration", _route_after_symptom_exploration)
+    graph.add_conditional_edges("measurement_check", _route_after_measurement_check)
+    graph.add_conditional_edges("match_candidates", _route_after_match_candidates)
+    graph.add_conditional_edges("claim_review", _route_after_claim_review)
+    graph.add_conditional_edges("evidence_review", _route_after_evidence_review)
 
     return graph.compile()
 

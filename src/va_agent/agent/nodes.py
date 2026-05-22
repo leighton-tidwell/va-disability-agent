@@ -86,6 +86,13 @@ def _is_non_honorable(disc: str | None) -> bool:
     return disc is not None and disc not in {"Honorable", "General Under Honorable Conditions"}
 
 
+def _to_dict(obj):
+    """Convert a dataclass/instance to a dict for state serialisation."""
+    if hasattr(obj, "__dict__"):
+        return {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
+    return obj
+
+
 def _surface_concept_if_triggered(
     state: AgentState, updates: dict, concepts: Iterable[Concept], text: str
 ) -> list[Message]:
@@ -347,12 +354,12 @@ def symptom_exploration_node(
 
     if state.get("current_anatomy") is None:
         if not queue:
-            updates["phase"] = "complete"
+            updates["phase"] = "measurement_check"
             transcript.append(
                 _say(
-                    "That covers the priority areas. In future slices we'll match your "
-                    "reports against the CFR and draft Lay Statements. For now your "
-                    "answers are saved to the graph."
+                    "That covers the priority anatomies. Next I'll ask about any specific "
+                    "measurements (like degrees of motion or hearing thresholds) you have "
+                    "from doctor visits, then match your reports against the CFR."
                 )
             )
             updates["transcript"] = transcript
@@ -558,3 +565,266 @@ def _probe_to_loss(question: str) -> str:
     if q.lower().startswith("do you "):
         return "yes — " + q.strip()
     return q.lower()
+
+
+# --- node 4: MeasurementCheck -------------------------------------------------
+
+
+def measurement_check_node(
+    state: AgentState, *, driver: GraphDriver, concepts: list[Concept]
+) -> dict:
+    """For each recorded Symptom, ask whether the veteran has a concrete
+    measurement (degrees of motion, decibels, etc.). Unknowns become
+    "to be measured at C&P" notes — not blockers.
+    """
+    updates: dict = {}
+    transcript: list[Message] = []
+    symptoms = list(state.get("symptoms_recorded") or [])
+
+    # Find the next symptom that doesn't yet have a measurement and hasn't been
+    # asked about. Track via a small marker in state.
+    asked = set(state.get("measurement_asked") or [])
+    pending_symptom = None
+    for s in symptoms:
+        key = s.get("body_part", "")
+        if key and key not in asked:
+            pending_symptom = s
+            break
+
+    if pending_symptom is None:
+        # All symptoms covered → advance to MatchCandidates.
+        updates["phase"] = "match_candidates"
+        return updates
+
+    body_part = pending_symptom["body_part"]
+    transcript.append(
+        _say(
+            f"Do you have any specific measurements for your {body_part}? "
+            f"For example, a range-of-motion number from a doctor's visit, or a "
+            f"hearing test result. If you don't know, just say 'I don't know' — "
+            f"the C&P examiner will measure it. (Format: 'flexion 40 degrees' or "
+            f"'hearing loss 25 dB at 2000Hz'.)"
+        )
+    )
+    veteran_text, remaining = _pop_input(state)
+    if veteran_text is None:
+        updates["transcript"] = transcript
+        return updates
+    transcript.append(_heard(veteran_text))
+    updates["pending_inputs"] = remaining
+
+    parsed = _parse_measurement(veteran_text, body_part)
+    if parsed is not None:
+        record_measurement(
+            driver,
+            state["user_id"],
+            name=parsed["name"],
+            body_part=body_part,
+            value=parsed["value"],
+            unit=parsed["unit"],
+            source="user-stated",
+        )
+        transcript.append(
+            _say(
+                f"Recorded {parsed['name']} = {parsed['value']} {parsed['unit']} "
+                f"for {body_part}."
+            )
+        )
+    else:
+        transcript.append(
+            _say(
+                f"Got it — no measurement on hand for {body_part}. I'll mark this "
+                f"as something the C&P examiner will check."
+            )
+        )
+
+    asked.add(body_part)
+    updates["measurement_asked"] = list(asked)  # type: ignore[typeddict-item]
+    updates["transcript"] = transcript
+    return updates
+
+
+def _parse_measurement(text: str, body_part: str) -> dict | None:
+    """Very small parser — pulls a value+unit out of a free-text response.
+
+    Recognises the patterns we care about for v1: 'flexion 40 degrees',
+    '40°', '25 dB'. For v2 we layer in an LLM extractor.
+    """
+    import re
+
+    t = text.lower().strip()
+    if any(t.startswith(p) for p in ("i don't know", "no", "none", "not sure", "skip")):
+        return None
+
+    m = re.search(r"(\w+)?\s*([0-9]+(?:\.[0-9]+)?)\s*(°|degrees?|deg|db|decibels?|%|hz|hertz)", t)
+    if not m:
+        return None
+    name = (m.group(1) or "").strip()
+    if not name or name in {"a", "an", "the", "of"}:
+        # Default the measurement name from the body part: knee → flexion.
+        defaults = {"knee": "flexion", "back": "flexion", "shoulder": "abduction"}
+        name = defaults.get(body_part, "measurement")
+    value = float(m.group(2))
+    raw_unit = m.group(3)
+    if raw_unit in {"°", "degrees", "degree", "deg"}:
+        unit = "degrees"
+    elif raw_unit in {"db", "decibels", "decibel"}:
+        unit = "decibels"
+    elif raw_unit == "%":
+        unit = "percent"
+    elif raw_unit in {"hz", "hertz"}:
+        unit = "hertz"
+    else:
+        unit = raw_unit
+    return {"name": name, "value": value, "unit": unit}
+
+
+# --- node 5: MatchCandidates --------------------------------------------------
+
+
+def match_candidates_node(
+    state: AgentState, *, driver: GraphDriver, concepts: list[Concept]
+) -> dict:
+    """Run the Match Retriever; persist a draft Claim with the candidate DCs."""
+    from ..retrieval.matcher import find_candidate_dcs
+    from ..review.claim_reviewer import create_claim
+
+    updates: dict = {}
+    transcript: list[Message] = []
+
+    candidates = find_candidate_dcs(driver, state["user_id"])
+    cand_list = [
+        {
+            "code": c.code,
+            "title": c.title,
+            "body_system": c.body_system,
+            "best_percent": c.best_percent,
+            "hit_count": len(c.criterion_hits),
+            "supporting_measurements": c.matching_measurements,
+        }
+        for c in candidates
+    ]
+    updates["candidate_dcs"] = cand_list
+
+    if not cand_list:
+        transcript.append(
+            _say(
+                "I didn't find any Diagnostic Codes that match your reports yet. "
+                "This usually means we need more detail or different measurements. "
+                "Skipping ahead — you can always add more reports and re-run."
+            )
+        )
+        updates["phase"] = "complete"
+        updates["transcript"] = transcript
+        return updates
+
+    transcript.append(
+        _say("Based on your reports, here are the Diagnostic Codes I'd recommend filing under:")
+    )
+    for c in cand_list[:10]:
+        transcript.append(
+            _say(
+                f"  • DC {c['code']} — {c['title']}: best-supported {c['best_percent']}% "
+                f"(matched {c['hit_count']} criteria)"
+            )
+        )
+
+    claim_id = create_claim(driver, state["user_id"], [c["code"] for c in cand_list])
+    updates["claim_id"] = claim_id
+    transcript.append(
+        _say(
+            f"I've created a draft Claim ({claim_id[:8]}…) with {len(cand_list)} "
+            f"Claimed Conditions. Next I'll run a Claim Review for Pyramiding and "
+            f"the Bilateral Factor."
+        )
+    )
+    updates["phase"] = "claim_review"
+    updates["transcript"] = transcript
+    return updates
+
+
+# --- node 6: ClaimReview ------------------------------------------------------
+
+
+def claim_review_node(
+    state: AgentState, *, driver: GraphDriver, concepts: list[Concept]
+) -> dict:
+    """Run Pyramiding + Bilateral Factor checks; surface results."""
+    from ..review.claim_reviewer import review_claim
+
+    updates: dict = {}
+    transcript: list[Message] = []
+    claim_id = state.get("claim_id")
+    if not claim_id:
+        # Nothing to review.
+        updates["phase"] = "evidence_review"
+        return updates
+
+    report = review_claim(driver, state["user_id"], claim_id)
+
+    updates["weaknesses"] = [_to_dict(c) for c in report.pyramiding]
+    updates["bilateral_prompts"] = [_to_dict(p) for p in report.bilateral_prompts]
+
+    if report.pyramiding:
+        transcript.append(_say("⚠️  Pyramiding check found conflicts:"))
+        for conflict in report.pyramiding:
+            transcript.append(_say(f"  • {conflict.explanation}"))
+        transcript.extend(_surface_concept_if_triggered(state, updates, concepts, "pyramiding"))
+    else:
+        transcript.append(_say("✓ Pyramiding check: no conflicts."))
+
+    if report.bilateral_prompts:
+        transcript.append(_say("Bilateral Factor prompts:"))
+        for p in report.bilateral_prompts:
+            transcript.append(
+                _say(
+                    f"  • You claimed {p.anatomy} but not {p.paired_anatomy}. Symptoms on "
+                    f"both sides trigger the Bilateral Factor (§4.26) — even mild symptoms "
+                    f"on the other side are worth claiming."
+                )
+            )
+        transcript.extend(_surface_concept_if_triggered(state, updates, concepts, "bilateral"))
+    else:
+        transcript.append(_say("✓ Bilateral Factor check: no single-sided gaps."))
+
+    updates["phase"] = "evidence_review"
+    updates["transcript"] = transcript
+    return updates
+
+
+# --- node 7: EvidenceReview --------------------------------------------------
+
+
+def evidence_review_node(
+    state: AgentState, *, driver: GraphDriver, concepts: list[Concept]
+) -> dict:
+    """Per Claimed Condition, list the Evidence types the veteran should
+    gather (STR / Buddy Statement / Private Medical Record)."""
+    from ..review.claim_reviewer import _enumerate_missing_evidence
+
+    updates: dict = {}
+    transcript: list[Message] = []
+    claim_id = state.get("claim_id")
+    if not claim_id:
+        updates["phase"] = "complete"
+        return updates
+
+    missing = _enumerate_missing_evidence(driver, state["user_id"], claim_id)
+    updates["missing_evidence"] = missing
+
+    transcript.append(_say("Evidence to gather per Claimed Condition:"))
+    for code, types in missing.items():
+        if not types:
+            transcript.append(_say(f"  • DC {code}: ✓ no Evidence gaps"))
+        else:
+            transcript.append(_say(f"  • DC {code}: " + ", ".join(types)))
+
+    transcript.append(
+        _say(
+            "Lay Statements for each Claimed Condition will be drafted next. The "
+            "Evidence above is what you (or your VSO) need to gather before C&P."
+        )
+    )
+    updates["phase"] = "complete"
+    updates["transcript"] = transcript
+    return updates
