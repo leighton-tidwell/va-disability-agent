@@ -8,7 +8,7 @@ The agent ingests **38 CFR Part 4** (the VA rating schedule) into a Neo4j knowle
 
 ## Status
 
-v1 in design. See [`docs/PRD.md`](docs/PRD.md) for the full plan.
+v1 in implementation. See [issue #1](https://github.com/leighton-tidwell/va-disability-agent/issues/1) for the PRD; implementation issues are tracked at [#2–#13](https://github.com/leighton-tidwell/va-disability-agent/issues). Domain glossary lives in [`CONTEXT.md`](CONTEXT.md).
 
 ## Stack
 
