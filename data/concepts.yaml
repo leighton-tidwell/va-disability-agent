@@ -1,0 +1,106 @@
+# Concepts: inline-education content the agent surfaces just-in-time during chat.
+# Each concept appears the first time its trigger arises during a session, and is
+# retrievable on demand via `/explain <topic>`.
+#
+# Schema: id, name, plain_language, citation, triggers (free-form keywords),
+# body_systems (optional list — limit surfacing to relevant systems).
+
+- id: worst-day-rule
+  name: "Worst-Day Rule"
+  citation: "38 CFR §4.40 and §4.45; DeLuca v. Brown"
+  triggers:
+    - flare
+    - flares
+    - flare-up
+    - flareup
+    - worst day
+    - sometimes
+    - fluctuating
+  plain_language: |
+    Your rating must account for how bad your symptoms get during flare-ups,
+    not just how they feel on a normal day. The CFR (§4.40 and §4.45) and
+    the DeLuca court ruling require the VA to consider your worst days —
+    functional loss, pain on use, fatigability, weakness — when deciding
+    your rating. Most veterans under-report because the C&P exam captures
+    their "normal" presentation. We're going to ask about both your typical
+    days AND your worst days so the rating reflects what the standard
+    actually requires.
+
+- id: service-connection
+  name: "Service Connection vs. Rating Percentage"
+  citation: "38 CFR §3.303 (Service Connection); §4.25 (Combined Ratings)"
+  triggers:
+    - service connection
+    - service-connected
+    - rated
+    - percentage
+  plain_language: |
+    The VA makes two separate decisions on each condition: (1) is it
+    connected to your service? (yes/no) and (2) how severe is it?
+    (0–100%). A 0% rating still means service-connected — you don't get
+    paid on it now, but if it gets worse later you can file an Increased
+    Rating Claim without re-proving service connection. These are
+    different decisions and your decision letter will list both.
+
+- id: pyramiding
+  name: "Pyramiding"
+  citation: "38 CFR §4.14"
+  triggers:
+    - pyramiding
+    - same symptom
+    - duplicate
+  plain_language: |
+    You cannot be rated under more than one Diagnostic Code for the same
+    symptom. If your knee pain is already rated under a limitation-of-
+    motion code, you cannot also be rated under a general arthritis code
+    for that same pain. Claiming the same symptom under multiple codes
+    is a way to lose both at appeal — we'll surface any pyramiding
+    conflicts so you can pick the best single path.
+
+- id: bilateral-factor
+  name: "Bilateral Factor"
+  citation: "38 CFR §4.26"
+  triggers:
+    - bilateral
+    - both sides
+    - left and right
+  plain_language: |
+    When you have a service-connected disability in matching limbs on
+    both sides (left knee + right knee, left arm + right arm), the VA
+    applies a small bonus (~10% multiplicative) to your Combined Rating.
+    Many veterans don't claim the second side ("my good knee is fine,
+    mostly"), so they miss the bonus. If you've mentioned one side, I'll
+    ask about the other.
+
+- id: cp-exam
+  name: "C&P Exam"
+  citation: "38 CFR §4.2; M21-1 III.iv.3.D"
+  triggers:
+    - exam
+    - c&p
+    - examination
+    - appointment
+  plain_language: |
+    After you file your claim, the VA will schedule a Compensation &
+    Pension exam (C&P) where an examiner measures your condition's
+    current severity. They write a report the rater uses. You can't
+    bring your own — but you can prepare. We'll give you per-condition
+    notes on what they will measure and what to describe (especially
+    your worst-day presentation, per the Worst-Day Rule).
+
+- id: discharge-characterization
+  name: "Discharge Characterization & VA Benefits"
+  citation: "38 CFR §3.12"
+  triggers:
+    - other than honorable
+    - oth
+    - bad conduct
+    - dishonorable
+  plain_language: |
+    Your discharge characterization affects benefit eligibility. Honorable
+    and General (Under Honorable Conditions) are the typical paths to VA
+    disability. Other Than Honorable, Bad Conduct, or Dishonorable
+    discharges face a Character of Discharge determination — you may
+    still be eligible, but the path is harder. Many OTH discharges can
+    be upgraded through the Discharge Review Board. This doesn't stop
+    us from working on your claim today.
