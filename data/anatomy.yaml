@@ -1,0 +1,91 @@
+# Anatomy registry for §4.71a (musculoskeletal) scope.
+#
+# Each entry maps a body_part name (as the LLM extractor emits it, lowercased)
+# to its body_system, parent_anatomy (the unsided parent — e.g. "knee"), and
+# side ("left", "right", or "unspecified").
+#
+# `pairs` lists left/right pairs that share a parent. The ingestion post-pass
+# creates `:PAIRED_WITH` edges between them. Unpaired (axial) anatomy like
+# spine/skull/coccyx has `side: unspecified` and no pair entry.
+#
+# Drives the §4.26 Bilateral Factor logic at query time.
+
+anatomy:
+  # Paired limb joints / structures
+  - { name: "knee",        body_system: "musculoskeletal", parent_anatomy: "knee",     side: "unspecified" }
+  - { name: "left knee",   body_system: "musculoskeletal", parent_anatomy: "knee",     side: "left" }
+  - { name: "right knee",  body_system: "musculoskeletal", parent_anatomy: "knee",     side: "right" }
+
+  - { name: "hip",         body_system: "musculoskeletal", parent_anatomy: "hip",      side: "unspecified" }
+  - { name: "left hip",    body_system: "musculoskeletal", parent_anatomy: "hip",      side: "left" }
+  - { name: "right hip",   body_system: "musculoskeletal", parent_anatomy: "hip",      side: "right" }
+
+  - { name: "ankle",       body_system: "musculoskeletal", parent_anatomy: "ankle",    side: "unspecified" }
+  - { name: "left ankle",  body_system: "musculoskeletal", parent_anatomy: "ankle",    side: "left" }
+  - { name: "right ankle", body_system: "musculoskeletal", parent_anatomy: "ankle",    side: "right" }
+
+  - { name: "shoulder",        body_system: "musculoskeletal", parent_anatomy: "shoulder", side: "unspecified" }
+  - { name: "left shoulder",   body_system: "musculoskeletal", parent_anatomy: "shoulder", side: "left" }
+  - { name: "right shoulder",  body_system: "musculoskeletal", parent_anatomy: "shoulder", side: "right" }
+
+  - { name: "elbow",       body_system: "musculoskeletal", parent_anatomy: "elbow",    side: "unspecified" }
+  - { name: "left elbow",  body_system: "musculoskeletal", parent_anatomy: "elbow",    side: "left" }
+  - { name: "right elbow", body_system: "musculoskeletal", parent_anatomy: "elbow",    side: "right" }
+
+  - { name: "wrist",       body_system: "musculoskeletal", parent_anatomy: "wrist",    side: "unspecified" }
+  - { name: "left wrist",  body_system: "musculoskeletal", parent_anatomy: "wrist",    side: "left" }
+  - { name: "right wrist", body_system: "musculoskeletal", parent_anatomy: "wrist",    side: "right" }
+
+  - { name: "hand",        body_system: "musculoskeletal", parent_anatomy: "hand",     side: "unspecified" }
+  - { name: "left hand",   body_system: "musculoskeletal", parent_anatomy: "hand",     side: "left" }
+  - { name: "right hand",  body_system: "musculoskeletal", parent_anatomy: "hand",     side: "right" }
+
+  - { name: "foot",        body_system: "musculoskeletal", parent_anatomy: "foot",     side: "unspecified" }
+  - { name: "left foot",   body_system: "musculoskeletal", parent_anatomy: "foot",     side: "left" }
+  - { name: "right foot",  body_system: "musculoskeletal", parent_anatomy: "foot",     side: "right" }
+
+  - { name: "leg",         body_system: "musculoskeletal", parent_anatomy: "leg",      side: "unspecified" }
+  - { name: "left leg",    body_system: "musculoskeletal", parent_anatomy: "leg",      side: "left" }
+  - { name: "right leg",   body_system: "musculoskeletal", parent_anatomy: "leg",      side: "right" }
+
+  - { name: "arm",         body_system: "musculoskeletal", parent_anatomy: "arm",      side: "unspecified" }
+  - { name: "left arm",    body_system: "musculoskeletal", parent_anatomy: "arm",      side: "left" }
+  - { name: "right arm",   body_system: "musculoskeletal", parent_anatomy: "arm",      side: "right" }
+
+  - { name: "thigh",       body_system: "musculoskeletal", parent_anatomy: "thigh",    side: "unspecified" }
+  - { name: "left thigh",  body_system: "musculoskeletal", parent_anatomy: "thigh",    side: "left" }
+  - { name: "right thigh", body_system: "musculoskeletal", parent_anatomy: "thigh",    side: "right" }
+
+  - { name: "finger",      body_system: "musculoskeletal", parent_anatomy: "finger",   side: "unspecified" }
+  - { name: "toe",         body_system: "musculoskeletal", parent_anatomy: "toe",      side: "unspecified" }
+  - { name: "clavicle",    body_system: "musculoskeletal", parent_anatomy: "clavicle", side: "unspecified" }
+  - { name: "scapula",     body_system: "musculoskeletal", parent_anatomy: "scapula",  side: "unspecified" }
+  - { name: "humerus",     body_system: "musculoskeletal", parent_anatomy: "humerus",  side: "unspecified" }
+  - { name: "femur",       body_system: "musculoskeletal", parent_anatomy: "femur",    side: "unspecified" }
+  - { name: "tibia",       body_system: "musculoskeletal", parent_anatomy: "tibia",    side: "unspecified" }
+  - { name: "fibula",      body_system: "musculoskeletal", parent_anatomy: "fibula",   side: "unspecified" }
+
+  # Axial / unpaired
+  - { name: "spine",        body_system: "musculoskeletal", parent_anatomy: "spine",         side: "unspecified" }
+  - { name: "cervical spine", body_system: "musculoskeletal", parent_anatomy: "spine",       side: "unspecified" }
+  - { name: "thoracolumbar spine", body_system: "musculoskeletal", parent_anatomy: "spine",  side: "unspecified" }
+  - { name: "lumbar spine", body_system: "musculoskeletal", parent_anatomy: "spine",         side: "unspecified" }
+  - { name: "skull",        body_system: "musculoskeletal", parent_anatomy: "skull",         side: "unspecified" }
+  - { name: "coccyx",       body_system: "musculoskeletal", parent_anatomy: "coccyx",        side: "unspecified" }
+  - { name: "ribs",         body_system: "musculoskeletal", parent_anatomy: "ribs",          side: "unspecified" }
+  - { name: "pelvis",       body_system: "musculoskeletal", parent_anatomy: "pelvis",        side: "unspecified" }
+
+# Pairs are by parent_anatomy. Both sides must exist in `anatomy:` for the
+# pair to be wired up.
+pairs:
+  - knee
+  - hip
+  - ankle
+  - shoulder
+  - elbow
+  - wrist
+  - hand
+  - foot
+  - leg
+  - arm
+  - thigh

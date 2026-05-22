@@ -13,9 +13,12 @@ from .schemas import (
     VALID_BODY_SYSTEMS,
     VALID_RATING_PERCENTS,
     DiagnosticCodeExtraction,
+    RuleExtraction,
 )
 
 DC_CODE_RE = re.compile(r"^\d{4}$")
+RULE_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+SECTION_RE = re.compile(r"^\d+\.\d+[a-z]?$")
 CROSS_REF_RE = re.compile(
     r"""^(
         DC\s\d{4}                |  # DC 5003
@@ -90,5 +93,43 @@ def validate_diagnostic_code(extraction: DiagnosticCodeExtraction) -> Validation
             result.add_warning(
                 f"cross_reference {ref!r} doesn't match known patterns (DC NNNN / §X.YZ)"
             )
+
+    return result
+
+
+def validate_rule(extraction: RuleExtraction) -> ValidationResult:
+    """Check structural invariants on a RuleExtraction (§4.1–§4.31 general
+    provisions).
+
+    Rules are prose, so the validator is necessarily lighter than
+    ``validate_diagnostic_code``: confirm the identifiers and required strings,
+    sanity-check the section format, and warn on a suspiciously short body.
+    """
+    result = ValidationResult(ok=True)
+
+    if not RULE_ID_RE.match(extraction.id):
+        result.add_error(
+            f"rule id {extraction.id!r} must be snake_case starting with a letter"
+        )
+
+    if not extraction.name.strip():
+        result.add_error("rule name is empty")
+
+    if not extraction.text.strip():
+        result.add_error("rule text is empty")
+    elif len(extraction.text.strip()) < 40:
+        result.add_warning(
+            f"rule text is suspiciously short ({len(extraction.text.strip())} chars)"
+        )
+
+    if extraction.body_system not in VALID_BODY_SYSTEMS:
+        result.add_error(
+            f"body_system {extraction.body_system!r} not in {sorted(VALID_BODY_SYSTEMS)}"
+        )
+
+    if not SECTION_RE.match(extraction.section.strip()):
+        result.add_error(
+            f"section {extraction.section!r} doesn't look like a CFR section (e.g. '4.14')"
+        )
 
     return result
